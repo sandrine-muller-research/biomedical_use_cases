@@ -1,42 +1,45 @@
 @echo off
 chcp 65001 >nul
 setlocal ENABLEDELAYEDEXPANSION
-title Local LLMs - AUTO SETUP (Ollama + OpenWebUI)
+title Local LLMs Setup
 cls
 
-echo ========================================
-echo 🚀 Local LLMs Setup - Ollama + OpenWebUI + Modèles
-echo ========================================
+echo 🚀 Local LLMs - Auto Setup
+echo.
 
 REM Docker check
 docker --version >nul 2>&1 || (
-    echo Docker requis! Go to to install docker descktop: https://docker.com
-    pause
-    exit /b 1
+    echo Docker requis: https://docker.com
+    pause & exit /b 1
 )
+
+REM unique security key for webui
+powershell "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((New-Guid).Guid+(Get-Date -UFormat %%s)+'%RANDOM%'))" > llms.env
+
+echo 🔒 Security key created: llm.env
 
 set COMPOSE_FILE=docker-compose-local-llms.yml
 set MODELS="llama3.2:3b biomistral:7b"
 
-echo 📁 Dossier: %CD%
+echo Dossier: %CD%
 
 REM === CLEANUP ===
-echo 🧹 Conteneurs existants:
+echo cleaning old containers...:
 docker compose -f %COMPOSE_FILE% ps -a
-set /p CLEANUP="Nettoyer tout? (Y/N): "
+set /p CLEANUP="Cleanup old containers first ? (Y/N): "
 if /i "!CLEANUP!"=="Y" (
-    echo 💥 Nettoyage...
+    echo cleaning up...
     docker compose -f %COMPOSE_FILE% down -v --rmi local 2>nul
     docker system prune -f 2>nul
 )
 
 REM === OLLAMA START ===
-echo 🔄 [1/4] Démarrage Ollama...
+echo [1/4] Démarrage Ollama...
 docker compose -f %COMPOSE_FILE% up -d ollama
 timeout /t 15 /nobreak >nul
 
 REM === Find OLLAMA container ===
-echo 🔍 Recherche conteneur Ollama...
+echo Search ollama container...
 for /f "tokens=1" %%i in ('docker ps --filter "ancestor=ollama/ollama" --format "{{.Names}}"') do set OLLAMA_CONTAINER=%%i
 if not defined OLLAMA_CONTAINER (
     echo Ollama conteneur introuvable!
@@ -47,15 +50,15 @@ if not defined OLLAMA_CONTAINER (
 echo Ollama trouvé: !OLLAMA_CONTAINER!
 
 REM === Pull models ===
-echo 📥 [2/4] Pull modèles...
+echo [2/4] Pull modèles...
 docker exec !OLLAMA_CONTAINER! ollama pull llama3.2:3b
 docker exec !OLLAMA_CONTAINER! ollama pull qwen2.5:3b
 REM
-docker exec !OLLAMA_CONTAINER! ollama pull biomistral 2>nul || echo "Biomistral indisponible OK"
+docker exec !OLLAMA_CONTAINER! ollama pull biomistral 2>nul || echo "Biomistral pull failed, maybe not available yet. Ignoring for now."
 
-REM === final list ===
+REM === Final list ===
 echo.
-echo ✅ Modèles installés:
+echo Modèles installés:
 docker exec !OLLAMA_CONTAINER! ollama list
 
 
@@ -79,11 +82,11 @@ docker compose -f %COMPOSE_FILE% logs --tail=10
 
 echo.
 echo ========================================
-echo TERMINÉ!
+echo Job done!
 echo OpenWebUI: http://localhost:3000
 echo.
-echo Modèles !OLLAMA_CONTAINER!:
+echo Models !OLLAMA_CONTAINER!:
 docker exec !OLLAMA_CONTAINER! ollama list
 echo.
-echo Dans: %CD%
+echo In: %CD%
 timeout /t 10 /nobreak >nul
