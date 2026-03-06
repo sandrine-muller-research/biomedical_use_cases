@@ -19,7 +19,7 @@ powershell "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((New-Guid).
 echo 🔒 Security key created: llm.env
 
 set COMPOSE_FILE=docker-compose-local-llms.yml
-set MODELS="llama3.2:3b biomistral:7b"
+set MODELS="llama3.2:3b cniongolo/biomistral:latest"
 
 echo Dossier: %CD%
 
@@ -33,7 +33,8 @@ if /i "!CLEANUP!"=="Y" (
     docker system prune -f 2>nul
 )
 
-REM === OLLAMA START ===
+
+REM === OLLAMA start ===
 echo [1/4] Démarrage Ollama...
 docker compose -f %COMPOSE_FILE% up -d ollama
 timeout /t 15 /nobreak >nul
